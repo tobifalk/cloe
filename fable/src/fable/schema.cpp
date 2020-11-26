@@ -39,14 +39,6 @@ using SchemaVec = Schema::SchemaVec;
 
 namespace {
 
-BoxMap to_box_map(const SchemaMap& m) {
-  BoxMap out;
-  for (const auto& kv : m) {
-    out.insert(std::make_pair(kv.first, kv.second));
-  }
-  return out;
-}
-
 BoxVec to_box_vec(const SchemaVec& xs) {
   BoxVec out;
   out.reserve(xs.size());
@@ -59,9 +51,6 @@ BoxVec to_box_vec(const SchemaVec& xs) {
 }  // anonymous namespace
 
 // Struct constructions:
-Schema::Schema(const SchemaMap& props) : Schema("", std::move(props)) {}
-Schema::Schema(std::string&& desc, const SchemaMap& props)
-    : impl_(new Struct(std::move(desc), to_box_map(props))) {}
 Schema::Schema(BoxPairList props) : Schema("", std::move(props)) {}
 Schema::Schema(std::string&& desc, BoxPairList props)
     : impl_(new Struct(std::move(desc), std::move(props))) {}

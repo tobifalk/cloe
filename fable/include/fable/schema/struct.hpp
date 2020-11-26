@@ -38,11 +38,9 @@ namespace fable {
 namespace schema {
 
 using BoxPairList = std::initializer_list<std::pair<std::string const, Box>>;
-using BoxMap = std::map<std::string, Box>;
 
 template <typename T>
-using is_properties_t =
-    std::enable_if_t<std::is_same<BoxPairList, T>::value || std::is_same<BoxMap, T>::value, int>;
+using is_properties_t = std::enable_if_t<std::is_same<BoxPairList, T>::value, int>;
 
 /**
  * Struct maintains a key-value mapping, where the list of keys is usually
@@ -59,37 +57,66 @@ class Struct : public Base<Struct> {
  public:  // Constructors
   explicit Struct(std::string&& desc = "") : Base(JsonType::object, std::move(desc)) {}
 
-  Struct(std::string&& desc, BoxPairList props);
-  Struct(std::string&& desc, BoxMap&& props);
-  Struct(std::string&& desc, const Struct& base, BoxPairList props);
-  Struct(std::string&& desc, const Struct& base, BoxMap&& props);
-  Struct(std::string&& desc, const Box& base, BoxPairList props);
-  Struct(std::string&& desc, const Box& base, BoxMap&& props);
+  Struct(std::string&& desc, BoxPairList props) : Base(JsonType::object, std::move(desc)) {
+    set_properties(props);
+  }
 
   Struct(BoxPairList props) : Struct("", std::move(props)) {}  // NOLINT
-  Struct(BoxMap&& props) : Struct("", std::move(props)) {}     // NOLINT
-  Struct(const Struct& base, BoxPairList props) : Struct("", base, std::move(props)) {}
-  Struct(const Struct& base, BoxMap&& props) : Struct("", base, std::move(props)) {}
-  Struct(const Box& base, BoxPairList props) : Struct("", base, std::move(props)) {}
-  Struct(const Box& base, BoxMap&& props) : Struct("", base, std::move(props)) {}
+
+  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
+  Struct(std::string&& desc, const T& base, BoxPairList props)
+      : Struct(*base.template as<Struct>()) {
+    desc_ = std::move(desc);
+    set_properties(props);
+  }
+
+  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
+  Struct(const T& base, BoxPairList props) : Struct("", base, props) {}
+
+  // Inheriting constructors
 
  public:  // Special
   /**
    * Set the property to this schema.
    *
    * - This overwrites any already existing field of the same key.
-   * - Meant to be used during construction.
    */
   void set_property(const std::string& key, Box&& s);
-  Struct property(const std::string& key, Box&& s) &&;
+
+  Struct property(const std::string& key, Box&& s) && {
+    set_property(key, std::move(s));
+    return std::move(*this);
+  }
+
+  /**
+   * Set all properties.
+   *
+   * - This overwrites any already existing property of the same key.
+   */
+  void set_properties(BoxPairList props);
 
   /**
    * Add the properties from s to this schema.
    *
    * - This will overwrite any existing properties.
    */
-  void set_properties_from(const Struct& s);
-  Struct properties_from(const Struct& s) &&;
+  void set_properties_from(const Struct& s) { set_properties(s.properties_); }
+
+  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
+  void set_properties_from(const T& s) {
+    set_properties_from(*s.template as<Struct>());
+  }
+
+  template <typename T, std::enable_if_t<std::is_base_of<Confable, T>::value, int> = 0>
+  void set_properties_from(const T* x) {
+    set_properties_from(x->schema());
+  }
+
+  template <typename T>
+  Struct properties_from(const T x) {
+    set_properties_from(x);
+    return std::move(*this);
+  }
 
   /**
    * Set which entries are required.
@@ -147,6 +174,9 @@ class Struct : public Base<Struct> {
   void validate(const Conf& c) const override;
   void to_json(Json& j) const override;
   void from_conf(const Conf& c) override;
+
+ private:
+  void set_properties(const std::map<std::string, Box>& props);
 
  private:
   std::map<std::string, Box> properties_{};

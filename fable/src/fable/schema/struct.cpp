@@ -29,44 +29,6 @@
 namespace fable {
 namespace schema {
 
-Struct::Struct(std::string&& desc, BoxPairList props)
-    : Base(JsonType::object, std::move(desc)), properties_(std::move(props)) {
-  for (const auto& kv : properties_) {
-    if (kv.second.is_required()) {
-      properties_required_.emplace_back(kv.first);
-    }
-  }
-}
-
-Struct::Struct(std::string&& desc, BoxMap&& props)
-    : Base(JsonType::object, std::move(desc)), properties_(std::move(props)) {
-  for (const auto& kv : properties_) {
-    if (kv.second.is_required()) {
-      properties_required_.emplace_back(kv.first);
-    }
-  }
-}
-
-Struct::Struct(std::string&& desc, const Struct& base, BoxPairList props) : Struct(base) {
-  desc_ = std::move(desc);
-  for (auto&& p : std::move(props)) {
-    set_property(p.first, p.second.clone());
-  }
-}
-
-Struct::Struct(std::string&& desc, const Struct& inherit, BoxMap&& props) : Struct(inherit) {
-  desc_ = std::move(desc);
-  for (auto&& p : props) {
-    set_property(p.first, std::move(p.second));
-  }
-}
-
-Struct::Struct(std::string&& desc, const Box& base, BoxPairList props)
-    : Struct(std::move(desc), dynamic_cast<const Struct&>(*base.clone()), std::move(props)) {}
-
-Struct::Struct(std::string&& desc, const Box& base, BoxMap&& props)
-    : Struct(std::move(desc), dynamic_cast<const Struct&>(*base.clone()), std::move(props)) {}
-
 void Struct::set_property(const std::string& key, Box&& s) {
   auto it = std::find(properties_required_.begin(), properties_required_.end(), key);
   if (s.is_required()) {
@@ -81,20 +43,16 @@ void Struct::set_property(const std::string& key, Box&& s) {
   properties_.insert(std::make_pair(key, std::move(s)));
 }
 
-Struct Struct::property(const std::string& key, Box&& s) && {
-  set_property(key, std::move(s));
-  return std::move(*this);
-}
-
-void Struct::set_properties_from(const Struct& s) {
-  for (auto& kv : s.properties_) {
-    set_property(kv.first, kv.second.clone());
+void Struct::set_properties(BoxPairList props) {
+  for (auto& p : props) {
+    set_property(p.first, p.second.clone());
   }
 }
 
-Struct Struct::properties_from(const Struct& s) && {
-  set_properties_from(s);
-  return std::move(*this);
+void Struct::set_properties(const std::map<std::string, Box>& props) {
+  for (auto& p : props) {
+    set_property(p.first, p.second.clone());
+  }
 }
 
 void Struct::set_require(std::initializer_list<std::string> init) {
