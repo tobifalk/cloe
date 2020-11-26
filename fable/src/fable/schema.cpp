@@ -26,7 +26,6 @@
 
 namespace fable {
 
-using schema::BoxMap;
 using schema::BoxPairList;
 using schema::Struct;
 
