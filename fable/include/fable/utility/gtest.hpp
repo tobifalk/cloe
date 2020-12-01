@@ -20,8 +20,8 @@
  */
 
 #pragma once
-#ifndef FABLE_UTILITY_GTEST_HPP
-#define FABLE_UTILITY_GTEST_HPP
+#ifndef FABLE_UTILITY_GTEST_HPP_
+#define FABLE_UTILITY_GTEST_HPP_
 
 #include <iostream>  // for cerr
 
@@ -81,5 +81,15 @@ inline void assert_from_conf(Confable& x, const char json_input[]) {
   assert_from_conf(x, Conf{Json::parse(json_input)});
 }
 
+inline void assert_from_eq_to(Confable& x, const Json& identity) {
+  assert_from_conf(x, Conf{identity});
+  assert_to_json(x, identity);
+}
+
+inline void assert_from_eq_to(Confable& x, const char json_input[]) {
+  assert_from_eq_to(x, Json::parse(json_input));
+}
+
 }  // namespace fable
-#endif  // FABLE_UTILITY_GTEST_HPP
+
+#endif  // FABLE_UTILITY_GTEST_HPP_

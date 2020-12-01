@@ -35,12 +35,33 @@
 #include <fable/schema/interface.hpp>  // for Base<>
 
 namespace fable {
+
+// Forward declaration from fable/schema.hpp:
+class Schema;
+
 namespace schema {
 
-using BoxPairList = std::initializer_list<std::pair<std::string const, Box>>;
+/**
+ * PropertyList is mainly used in constructors to enable the use of initializer
+ * list.
+ *
+ * \example
+ *   Given the following constructor declaration:
+ *
+ *       Struct(PropertyList<> props);
+ *
+ *   Struct can be instantiated then like so:
+ *
+ *     return Struct{
+ *        {"prop_a", make_schema(...)},
+ *        {"prop_b", make_schema(...)},
+ *     };
+ */
+template <typename S = Box>
+using PropertyList = std::initializer_list<std::pair<std::string const, S>>;
 
-template <typename T>
-using is_properties_t = std::enable_if_t<std::is_same<BoxPairList, T>::value, int>;
+template <typename T, typename S = Box>
+using enable_if_property_list_t = std::enable_if_t<std::is_same<PropertyList<S>, T>::value>;
 
 /**
  * Struct maintains a key-value mapping, where the list of keys is usually
@@ -51,29 +72,28 @@ using is_properties_t = std::enable_if_t<std::is_same<BoxPairList, T>::value, in
  *
  * This should not be confused with the Map type.
  *
- * \see  fable/schema/map.hpp
+ * \see fable/schema/map.hpp
  */
 class Struct : public Base<Struct> {
  public:  // Constructors
   explicit Struct(std::string&& desc = "") : Base(JsonType::object, std::move(desc)) {}
 
-  Struct(std::string&& desc, BoxPairList props) : Base(JsonType::object, std::move(desc)) {
+  Struct(std::string&& desc, PropertyList<Box> props) : Base(JsonType::object, std::move(desc)) {
     set_properties(props);
   }
 
-  Struct(BoxPairList props) : Struct("", std::move(props)) {}  // NOLINT
+  Struct(PropertyList<Box> props) : Struct("", props) {}  // NOLINT
 
-  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
-  Struct(std::string&& desc, const T& base, BoxPairList props)
+  // Inheriting constructors
+  template <typename S, typename = enable_if_schema_t<S>>
+  Struct(std::string&& desc, const S& base, PropertyList<Box> props)
       : Struct(*base.template as<Struct>()) {
     desc_ = std::move(desc);
     set_properties(props);
   }
 
-  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
-  Struct(const T& base, BoxPairList props) : Struct("", base, props) {}
-
-  // Inheriting constructors
+  template <typename S, typename = enable_if_schema_t<S>>
+  Struct(const S& base, PropertyList<Box> props) : Struct("", base, props) {}
 
  public:  // Special
   /**
@@ -93,7 +113,8 @@ class Struct : public Base<Struct> {
    *
    * - This overwrites any already existing property of the same key.
    */
-  void set_properties(BoxPairList props);
+  void set_properties(PropertyList<Box> props);
+  void set_properties(PropertyList<Schema> props);
 
   /**
    * Add the properties from s to this schema.
@@ -102,12 +123,12 @@ class Struct : public Base<Struct> {
    */
   void set_properties_from(const Struct& s) { set_properties(s.properties_); }
 
-  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
-  void set_properties_from(const T& s) {
+  template <typename S, typename = enable_if_schema_t<S>>
+  void set_properties_from(const S& s) {
     set_properties_from(*s.template as<Struct>());
   }
 
-  template <typename T, std::enable_if_t<std::is_base_of<Confable, T>::value, int> = 0>
+  template <typename T, typename = enable_if_confable_t<T>>
   void set_properties_from(const T* x) {
     set_properties_from(x->schema());
   }
@@ -150,16 +171,16 @@ class Struct : public Base<Struct> {
   }
 
   // XXX(ben): This does not work!
-  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
-  void set_additional_properties(const T& s) {
+  template <typename S, typename = enable_if_schema_t<S>>
+  void set_additional_properties(const S& s) {
     additional_properties_ = true;
     additional_prototype_.reset(s.clone());
     additional_prototype_->reset_ptr();
   }
 
   // XXX(ben): This does not work!
-  template <typename T, std::enable_if_t<std::is_base_of<Interface, T>::value, int> = 0>
-  Struct additional_properties(const T& s) && {
+  template <typename S, typename = enable_if_schema_t<S>>
+  Struct additional_properties(const S& s) && {
     set_additional_properties(s);
     return std::move(*this);
   }
@@ -185,22 +206,22 @@ class Struct : public Base<Struct> {
   bool additional_properties_{false};
 };
 
-template <typename T, is_properties_t<T> = 0>
+template <typename T, typename = enable_if_property_list_t<T>>
 inline Struct make_schema(T&& props) {
   return Struct(std::forward<T>(props));
 }
 
-template <typename T, is_properties_t<T> = 0>
+template <typename T, typename = enable_if_property_list_t<T>>
 inline Struct make_schema(std::string&& desc, T&& props) {
   return Struct(std::move(desc), std::forward<T>(props));
 }
 
-template <typename T, is_properties_t<T> = 0>
+template <typename T, typename = enable_if_property_list_t<T>>
 inline Struct make_schema(std::string&& desc, const Box& base, T&& props) {
   return Struct(std::move(desc), base, std::forward<T>(props));
 }
 
-template <typename T, is_properties_t<T> = 0>
+template <typename T, typename = enable_if_property_list_t<T>>
 inline Struct make_schema(std::string&& desc, const Struct& base, T&& props) {
   return Struct(std::move(desc), base, std::forward<T>(props));
 }
