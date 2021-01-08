@@ -158,7 +158,9 @@ class Environment:
                 self._data[kv[0]] = kv[1]
             except IndexError:
                 logging.error(
-                    "Error: cannot interpret environment key-value pair:", line
+                    "Error: cannot interpret environment key-value pair: {}".format(
+                        line
+                    )
                 )
 
     def __delitem__(self, key: str):
@@ -508,6 +510,7 @@ class Engine:
 
     def shell(
         self,
+        arguments: List[str] = None,
         use_cache: bool = False,
     ) -> None:
         """Launch a SHELL with the environment variables adjusted."""
@@ -545,7 +548,10 @@ class Engine:
 
         # Replace this process with the SHELL now.
         sys.stdout.flush()
-        os.execvpe(shell, [shell], env.as_dict())
+        cmd = [shell]
+        if arguments is not None:
+            cmd.extend(arguments)
+        os.execvpe(shell, cmd, env.as_dict())
 
     def exec(
         self,
