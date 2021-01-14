@@ -32,8 +32,8 @@ RUN conan profile new --detect default && \
 # Build and Install Cloe
 WORKDIR /cloe
 COPY . /cloe
-RUN make VENDOR_ONLY=1 export && \
-    make WITH_VTD=0 package && \
+RUN make export-vtd export && \
+    make WITH_VTD=0 package-all && \
     make WITH_VTD=0 INSTALL_DIR="/deploy" deploy && \
     conan remove \* -b -f
 
